@@ -19,6 +19,17 @@ cmp %3, %4
 cswapg %1, %2, %3, %4
 %endmacro
 
+%macro cswapg 3
+;Usage is cswapg dstA, dstB, srcA
+mov %1, %3
+cmovg %1, %2
+cmovg %2, %3
+%endmacro
+
+%macro cmpcswapg 3
+cmp %2, %3
+cswapg %1, %2, %3
+%endmacro
 
 global bubbleSort8s7
 bubbleSort8s7:
@@ -49,41 +60,72 @@ bubbleSort8s7:
 
         ;Initial layout of elements (and spare registers)
         ; 8,  9, 10, 11, 12, 13, 14, 15 ( a,  b)
-        ;Using the 3 register version of cswapg is 8.696% slower by my measurements
+
+        ;Swap 0/1
+        ; [ 8,  a], 10, 11, 12, 13, 14, 15 ( 9,  b)
+        cmpcswapg eax, r8d, r9d
+        ;Swap 1/2
+        ;  8, [ a,  9], 11, 12, 13, 14, 15 (10,  b)
+        cmpcswapg r9d, eax, r10d
+        ;Swap 2/3
+        ;  8,  a, [ 9, 10], 12, 13, 14, 15 (11,  b)
+        cmpcswapg r10d, r9d, r11d
+        ;Swap 3/4
+        ;  8,  a,  9, [10, 11], 13, 14, 15 (12,  b)
+        cmpcswapg r11d, r10d, r12d
+        ;Swap 4/5
+        ;  8,  a,  9, 10, [11, 12], 14, 15 (13,  b)
+        cmpcswapg r12d, r11d, r13d
+        ;Swap 5/6
+        ;  8,  a,  9, 10, 11, [12, 13], 15 (14,  b)
+        cmpcswapg r13d, r12d, r14d
+        ;Swap 6/7
+        ;  8,  a,  9, 10, 11, 12, [13, 14] (15,  b)
+        cmpcswapg r14d, r13d, r15d
+        
+        ;Store
+        ;  8,  a,  9, 10, 11, 12, 13, 14
+        mov [rcx + 0*4], r8d
+        mov [rcx + 1*4], eax
+        mov [rcx + 2*4], r9d
+        mov [rcx + 3*4], r10d
+        mov [rcx + 4*4], r11d
+        mov [rcx + 5*4], r12d
+        mov [rcx + 6*4], r13d
+        mov r8d,         r14d        
 
         ;Swap 0/1
         ; [a,  b], 10, 11, 12, 13, 14, 15 ( 8,  9)
-        cmpcswapg eax, ebx, r8d, r9d
+        ;cmpcswapg eax, ebx, r8d, r9d
         ;Swap 1/2
         ; a, [ 8,  9], 11, 12, 13, 14, 15 ( b, 10)
-        cmpcswapg r8d, r9d, ebx, r10d
+        ;cmpcswapg r8d, r9d, ebx, r10d
         ;Swap 2/3
         ; a,  8, [ b, 10], 12, 13, 14, 15 ( 9, 11)
-        cmpcswapg ebx, r10d, r9d, r11d
+        ;cmpcswapg ebx, r10d, r9d, r11d
         ;Swap 3/4
         ; a,  8,  b, [ 9, 11], 13, 14, 15 (10, 12)
-        cmpcswapg r9d, r11d, r10d, r12d
+        ;cmpcswapg r9d, r11d, r10d, r12d
         ;Swap 4/5
         ; a,  8,  b,  9, [10, 12], 14, 15 (11, 13)
-        cmpcswapg r10d, r12d, r11d, r13d
+        ;cmpcswapg r10d, r12d, r11d, r13d
         ;Swap 5/6
         ; a,  8,  b,  9, 10, [11, 13], 15 (12, 14)
-        cmpcswapg r11d, r13d, r12d, r14d
+        ;cmpcswapg r11d, r13d, r12d, r14d
         ;Swap 6/7
         ; a,  8,  b,  9, 10, 11, [12, 14] (13, 15)
-        cmpcswapg r12d, r14d, r13d, r15d
-
+        ;cmpcswapg r12d, r14d, r13d, r15d
 
         ;Store
         ; a,  8,  b,  9, 10, 11, 12, 14
-        mov [rcx + 0*4], eax
-        mov [rcx + 1*4], r8d
-        mov [rcx + 2*4], ebx
-        mov [rcx + 3*4], r9d
-        mov [rcx + 4*4], r10d
-        mov [rcx + 5*4], r11d
-        mov [rcx + 6*4], r12d
-        mov r8d,         r14d
+        ;mov [rcx + 0*4], eax
+        ;mov [rcx + 1*4], r8d
+        ;mov [rcx + 2*4], ebx
+        ;mov [rcx + 3*4], r9d
+        ;mov [rcx + 4*4], r10d
+        ;mov [rcx + 5*4], r11d
+        ;mov [rcx + 6*4], r12d
+        ;mov r8d,         r14d
 
         add rcx, 7*4
         jmp bubbleLoop
